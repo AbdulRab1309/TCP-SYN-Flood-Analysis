@@ -1,16 +1,18 @@
 # TCP SYN Flood Detection and Analysis Using Wireshark
 
-## Overview
+A networking and cybersecurity course project focused on analyzing TCP handshake behavior using Wireshark and automating basic packet analysis with Bash and TShark.
 
-This project explores TCP handshake behavior and examines packet
-patterns associated with incomplete TCP connections.
+> **Project Scope:** This project demonstrates controlled TCP SYN traffic analysis in a laboratory environment. The current implementation performs basic packet counting and does not constitute a fully validated SYN flood detection system.
 
-Wireshark is used to capture and inspect network traffic, while
-a Bash script using TShark automates basic packet counting and
-generates a summary of the observed traffic.
+## Project Overview
 
-The experiments were performed in a controlled laboratory
-environment using Kali Linux and a Windows TCP test server.
+The Transmission Control Protocol (TCP) establishes connections through a three-way handshake consisting of SYN, SYN-ACK, and ACK packets.
+
+A TCP SYN flood is a type of Denial-of-Service (DoS) attack that exploits this connection-establishment process by generating numerous connection requests that may remain incomplete.
+
+This project investigates TCP handshake behavior using Wireshark and automates basic packet analysis through a Bash script that uses TShark.
+
+The experiments were conducted in a controlled laboratory environment using Kali Linux, Oracle VirtualBox, and a Windows host running a local TCP test server.
 
 ## Objectives
 
@@ -19,78 +21,220 @@ environment using Kali Linux and a Windows TCP test server.
 - Examine SYN, SYN-ACK, and ACK packet behavior.
 - Perform a controlled TCP SYN packet experiment.
 - Automate basic packet analysis using Bash and TShark.
+- Generate a summary of observed TCP packet counts.
+- Understand the limitations of packet-based attack analysis.
 
 ## Technologies Used
 
-- Kali Linux
-- Windows
-- Oracle VirtualBox
-- Wireshark
-- TShark
-- Bash
-- hping3
-- Python
-- Netcat
+| Technology | Purpose |
+|---|---|
+| Kali Linux | Laboratory environment |
+| Windows | Host system and TCP test server |
+| Oracle VirtualBox | Virtual machine environment |
+| Wireshark | Graphical network packet analysis |
+| TShark | Command-line packet analysis |
+| Bash | Automation and report generation |
+| hping3 | Controlled SYN packet generation |
+| Python | Local TCP test server |
+| Netcat | Normal TCP connectivity testing |
 
-## Project Workflow
+## Project Architecture
 
-1. Configure a host-only network between Kali Linux and Windows.
-2. Run a TCP test server on Windows.
-3. Capture normal TCP communication using Wireshark.
-4. Perform a bounded SYN packet experiment in the lab.
-5. Analyze saved packet captures using TShark.
-6. Generate a packet-count summary using Bash.
+```text
+             Kali Linux VM
+                  |
+                  | Controlled SYN Experiment
+                  v
+          Windows TCP Test Server
+               Port 9999
+                  |
+                  v
+          Wireshark Packet Capture
+                  |
+                  v
+            Saved PCAPNG File
+                  |
+                  v
+          Bash Script: syn_detector.sh
+                  |
+                  v
+           TShark Packet Analysis
+                  |
+                  v
+          TCP Traffic Summary Report
+```
 
-## Bash Analyzer
+## Project Implementation
 
-The `syn_detector.sh` script:
+### 1. Laboratory Setup
 
-- Validates the capture file.
+A host-only network was configured in Oracle VirtualBox to enable communication between Kali Linux and the Windows host.
+
+A Python TCP test server was created on Windows and configured to listen on port `9999`.
+
+### 2. Normal TCP Traffic Analysis
+
+Netcat was used in Kali Linux to establish a TCP connection with the Windows test server.
+
+```bash
+nc 192.168.56.1 9999
+```
+
+Wireshark was used to inspect the TCP three-way handshake and observe subsequent communication.
+
+### 3. Controlled SYN Experiment
+
+The following command was executed in Kali Linux:
+
+```bash
+sudo hping3 -S -p 9999 -c 10 192.168.56.1
+```
+
+This command generated ten TCP SYN packets targeting the local Windows test server.
+
+Wireshark captured the outgoing SYN packets and the corresponding SYN-ACK responses.
+
+This was a bounded laboratory experiment, not a high-volume denial-of-service test.
+
+### 4. Bash Automation
+
+A Bash script named `syn_detector.sh` was developed to automate basic packet analysis using TShark.
+
+The script:
+
+- Validates the supplied capture filename.
+- Checks whether the capture file exists.
+- Checks whether TShark is installed.
 - Counts initial SYN packets.
 - Counts SYN-ACK packets.
 - Counts selected ACK-bearing packets.
 - Displays a formatted analysis summary.
 
-## Experimental Observations
+## Installation and Usage
 
-The initial analyzer reported:
+### Prerequisites
 
-- Initial SYN packets: 11
-- SYN-ACK packets: 11
+- Kali Linux or another compatible Linux environment
+- Bash
+- Wireshark/TShark
+- A saved `.pcap` or `.pcapng` capture file
 
-Detailed inspection showed ten SYN requests using source
-ports 2841–2850 and an additional TCP connection using
-source port 41796.
+### Install TShark
 
-The provided capture output showed a completed handshake
-for the additional connection. Corresponding final ACK
-packets were not shown for the ten controlled SYN attempts.
+```bash
+sudo apt update
+sudo apt install tshark
+```
 
-The ACK-count discrepancy in the initial script output
-requires verification.
+### Run the Analyzer
+
+Navigate to the directory containing the script:
+
+```bash
+cd TCP-SYN-Flood-Analysis
+```
+
+Make the script executable:
+
+```bash
+chmod +x syn_detector.sh
+```
+
+Run the analyzer against a saved capture:
+
+```bash
+./syn_detector.sh syn_test.pcapng
+```
+
+Replace `syn_test.pcapng` with the actual filename or provide the full path to the capture.
+
+## Wireshark Display Filters
+
+### Initial SYN Packets
+
+```wireshark
+tcp.flags.syn == 1 && tcp.flags.ack == 0
+```
+
+### SYN-ACK Packets
+
+```wireshark
+tcp.flags.syn == 1 && tcp.flags.ack == 1
+```
+
+### TCP Traffic on Port 9999
+
+```wireshark
+tcp.port == 9999
+```
+
+### ACK-Bearing Packets
+
+```wireshark
+tcp.flags.ack == 1
+```
+
+These filters help isolate relevant packets for further inspection.
+
+## Experimental Results
+
+The initial Bash analyzer produced the following results:
+
+| Parameter | Observed Result |
+|---|---:|
+| Initial SYN packets | 11 |
+| SYN-ACK packets | 11 |
+| Non-SYN ACK packets reported by the initial script | 0 |
+
+Further inspection of the capture showed:
+
+- Ten SYN packets used source ports `2841` through `2850`.
+- These ten packets received SYN-ACK responses.
+- The provided packet output did not show corresponding final ACK packets for those ten attempts.
+- An additional connection used source port `41796`, and its handshake appeared to complete.
+
+**Validation note:** The initial script reported zero non-SYN ACK packets, but the detailed packet output showed ordinary ACK-bearing packets for the connection using source port `41796`. This discrepancy must be resolved before the ACK count is treated as final.
+
+The experiment demonstrates a controlled pattern of apparently incomplete TCP handshakes. It does not establish that a SYN flood attack occurred.
 
 ## Limitations
 
 - The current implementation performs basic packet counting.
-- It does not reliably correlate individual TCP handshakes.
-- It does not implement comprehensive time-based SYN flood detection.
+- It does not reliably correlate packets to individual TCP connections.
+- ACK-bearing packets are not necessarily final handshake acknowledgments.
+- Incomplete handshakes can occur for reasons other than an attack.
+- Comprehensive time-based SYN flood detection has not been implemented.
 - Packet counts alone cannot confirm a SYN flood attack.
 
 ## Future Improvements
 
-- Calculate SYN packet rates over time.
-- Correlate packets by TCP connection.
+- Implement TCP connection-level handshake correlation.
+- Calculate SYN packet rates over defined time intervals.
+- Compare normal traffic with controlled test traffic.
 - Improve incomplete-handshake analysis.
 - Generate more detailed automated reports.
+- Add more comprehensive detection logic.
 
 ## Learning Outcomes
 
-This project provided practical experience with TCP,
-network packet capture, Wireshark filters, TShark,
-Linux command-line tools, and Bash automation.
+This project provided practical experience with:
 
-## Disclaimer
+- TCP connection establishment and TCP flags
+- Wireshark packet capture and display filters
+- TShark command-line packet analysis
+- Bash scripting and command-line automation
+- Network traffic investigation
+- Experimental documentation and result analysis
 
-This project was developed for educational purposes.
-Experiments were performed against a local test server
-in a controlled laboratory environment.
+## Safety Disclaimer
+
+This project was developed for educational purposes. Experiments were performed against a local test server in a controlled laboratory environment.
+
+Only test systems that you own or have explicit authorization to assess.
+
+## References
+
+- [Wireshark Documentation](https://www.wireshark.org/docs/)
+- [TShark Manual](https://www.wireshark.org/docs/man-pages/tshark.html)
+- [Kali Linux Documentation](https://www.kali.org/docs/)
+- [GNU Bash Manual](https://www.gnu.org/software/bash/manual/)
